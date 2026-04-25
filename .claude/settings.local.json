@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(plan-ceo-review)",
+      "Skill(plan-ceo-review:*)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(echo \"PID: $!\")",
+      "Read(//tmp/**)",
+      "Skill(plan-eng-review)",
+      "Skill(plan-eng-review:*)",
+      "Bash(~/.claude/skills/gstack/bin/gstack-config set *)",
+      "Bash(touch ~/.claude/skills/gstack/.feature-prompted-continuous-checkpoint)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[0], indent=2\\)\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(open http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "wayntage",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "ingest:cad": "tsx scripts/ingest-cad-data.ts",
+    "ingest:cad:all": "tsx scripts/ingest-cad-data.ts --all",
+    "ingest:legistar": "tsx scripts/fetch-legistar.ts",
+    "ingest:meetings": "tsx scripts/ingest-meetings.ts",
+    "ingest:meetings:all": "tsx scripts/ingest-meetings.ts --dir \"CCAD Data/data/meetings\""
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.104.0",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.39",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}
