@@ -54,3 +54,4 @@ scripts/*.py
 !next.config.ts
 !eslint.config.mjs
 !postcss.config.mjs
+.claude/settings.local.json
