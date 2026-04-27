@@ -40,3 +40,24 @@ Key routing rules:
 - Review what gstack has learned → invoke /learn
 - Tune question sensitivity → invoke /plan-tune
 - Code quality dashboard → invoke /health
+
+## Deploy Configuration (configured by /setup-deploy)
+- Platform: Vercel
+- Production URL: https://wayntage.com
+- Deploy workflow: auto-deploy on push to main (GitHub: purple-elegance-ip/Wayntage)
+- Deploy status command: HTTP health check
+- Merge method: squash
+- Project type: web app (Next.js)
+- Post-deploy health check: https://wayntage.com
+
+### Custom deploy hooks
+- Pre-merge: none
+- Deploy trigger: automatic on push to main
+- Deploy status: poll https://wayntage.com
+- Health check: https://wayntage.com
+
+### Vercel project details
+- Team: purple-elegance (team_xIj3pb4sVbG23ib2L01XTFhY)
+- Project: wayntage
+- Vercel deploy URL: https://wayntage-77xqmoc0v-purple-elegance.vercel.app
+- Inspect: https://vercel.com/purple-elegance/wayntage
