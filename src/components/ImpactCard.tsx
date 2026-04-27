@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import type { ImpactEvent } from '@/lib/types'
 
 const TYPE_META: Record<string, { label: string; icon: string; bg: string; text: string }> = {
@@ -21,6 +24,16 @@ function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+/**
+ * Strips common legislative boilerplate from titles to get to the core subject.
+ */
+function cleanTitle(title: string) {
+  return title
+    .replace(/^(Consider|Discuss|Act|Consider\/Discuss\/Act|Consideration|Discussion|Action)\s+on\s+(an\s+)?(Ordinance|Resolution|Item|Request|Public Hearing|Order|Presentation)\s+(of\s+the\s+City\s+Council\s+)?(of\s+the\s+City\s+of\s+[A-Za-z]+)?\s*(amending|approving|authorizing|concerning|regarding|relating\s+to)?/i, '')
+    .trim()
+    .replace(/^\w/, (c) => c.toUpperCase()) // Re-capitalize first letter
+}
+
 export default function ImpactCard({
   event,
   dollarImpact,
@@ -28,12 +41,22 @@ export default function ImpactCard({
   event: ImpactEvent
   dollarImpact?: number | null
 }) {
+  const [isExpanded, setIsExpanded] = useState(false)
   const type = TYPE_META[event.impact_type] ?? TYPE_META.other
   const confidence = CONFIDENCE_BADGE[event.confidence]
-  const bullets = event.summary.split(' • ')
+  
+  const displayTitle = cleanTitle(event.title)
+  const bullets = event.summary.split(' • ').filter(b => b.trim() && b !== event.title)
+  
+  const hasDetails = bullets.length > 0 || event.source_pdf_url
 
   return (
-    <article className="group rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+    <article 
+      onClick={() => hasDetails && setIsExpanded(!isExpanded)}
+      className={`group rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm transition-all
+        ${hasDetails ? 'cursor-pointer hover:shadow-md hover:border-zinc-200' : ''}
+        ${isExpanded ? 'ring-2 ring-zinc-100' : ''}`}
+    >
       {/* header row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
@@ -51,8 +74,8 @@ export default function ImpactCard({
                 </span>
               )}
             </div>
-            <h3 className="text-sm font-semibold text-zinc-900 leading-snug">
-              {event.title}
+            <h3 className={`text-sm font-semibold text-zinc-900 leading-snug ${!isExpanded ? 'line-clamp-2' : ''}`}>
+              {displayTitle}
             </h3>
           </div>
         </div>
@@ -69,17 +92,22 @@ export default function ImpactCard({
       </div>
 
       {/* bullets */}
-      <ul className="mt-3 space-y-1">
-        {bullets.map((b, i) => (
-          <li key={i} className="flex gap-2 text-sm text-zinc-600 leading-snug">
-            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300" />
-            {b}
-          </li>
-        ))}
-      </ul>
+      {(isExpanded || bullets.length > 0) && (
+        <ul className={`mt-3 space-y-1.5 ${!isExpanded && bullets.length > 0 ? 'line-clamp-2' : ''}`}>
+          {bullets.map((b, i) => (
+            <li key={i} className="flex gap-2 text-sm text-zinc-600 leading-snug">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
+              {b}
+            </li>
+          ))}
+          {bullets.length === 0 && isExpanded && (
+            <li className="text-xs italic text-zinc-400">No additional summary bullets available for this item.</li>
+          )}
+        </ul>
+      )}
 
       {/* footer */}
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between border-t border-zinc-50 pt-4">
         <div className="flex items-center gap-2">
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${confidence.cls}`}>
             {confidence.label}
@@ -91,15 +119,23 @@ export default function ImpactCard({
           {event.source_pdf_url && (
             <a
               href={event.source_pdf_url}
+              onClick={(e) => e.stopPropagation()}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11px] font-medium text-zinc-400 hover:text-zinc-700"
+              className="rounded-lg bg-zinc-50 px-2 py-1 text-[11px] font-bold text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
             >
-              Source ↗
+              PDF ↗
             </a>
           )}
         </div>
       </div>
+      
+      {isExpanded && event.title !== displayTitle && (
+        <div className="mt-4 rounded-xl bg-zinc-50 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">Full Original Title</p>
+          <p className="text-xs text-zinc-500 leading-relaxed">{event.title}</p>
+        </div>
+      )}
     </article>
   )
 }
