@@ -4,7 +4,7 @@ export const mockProperty: CadProperty = {
   id: 'collin-2862701',
   county: 'collin',
   year: 2025,
-  address: '1201 PARKSIDE PL, CELINA, TX 75009',
+  address: 'DEMO MODE: 1201 PARKSIDE PL, CELINA, TX 75009',
   street_number: '1201',
   street_name: 'PARKSIDE',
   street_suffix: 'PL',

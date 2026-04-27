@@ -26,29 +26,37 @@ export default async function DashboardPage({
   let displayZip = ''
 
   if (address) {
+    console.log(`[Dashboard] Searching for: "${address}" (exact: ${exact})`)
     property = await getPropertyByAddress(address, exact === 'true')
     
     if (property) {
+      console.log(`[Dashboard] Property found: ${property.id}`)
       events = await getImpactEventsForProperty(property)
     } else {
-      // Try to extract zip
-      const zipMatch = address.match(/\b\d{5}\b/)
+      console.log(`[Dashboard] Property not found, attempting ZIP fallback...`)
+      // Try to extract zip (more robust regex)
+      const zipMatch = address.match(/(\d{5})(-\d{4})?$/) || address.match(/\b\d{5}\b/)
       if (zipMatch) {
-        displayZip = zipMatch[0]
+        displayZip = zipMatch[1] || zipMatch[0]
+        console.log(`[Dashboard] ZIP extracted: ${displayZip}`)
         const result = await getEventsByZip(displayZip)
         events = result.events
-        isZipFallback = true
         
-        // Create a dummy property for regional calculation
-        // Use a median value for the area (~$450k)
-        property = {
-          ...mockProperty,
-          address: `Regional View: ${displayZip}`,
-          zip: displayZip,
-          city: 'Local Area',
-          county: result.county as any,
-          assessed_value: 450000,
-          school_district_code: 'Local ISD'
+        if (events.length > 0) {
+          isZipFallback = true
+          // Create a dummy property for regional calculation
+          property = {
+            ...mockProperty,
+            id: `regional-${displayZip}`,
+            address: `Region: ${displayZip}`,
+            zip: displayZip,
+            city: 'Local Area',
+            county: result.county as any,
+            assessed_value: 450000,
+            school_district_code: 'Local ISD'
+          }
+        } else {
+          console.log(`[Dashboard] No events found for ZIP ${displayZip}`)
         }
       }
     }
