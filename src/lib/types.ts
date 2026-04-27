@@ -71,6 +71,13 @@ export interface ImpactEvent {
   created_at: string
 }
 
+export interface MeetingGroup {
+  meeting_date: string
+  meeting_type: string
+  ai_summary?: string
+  events: ImpactEvent[]
+}
+
 // ─── Thread (longitudinal issue tracking) ────────────────────────────────────
 
 export interface Thread {

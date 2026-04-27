@@ -4,14 +4,14 @@ import AddressSearch from '@/components/AddressSearch'
 import YearlyLedger from '@/components/YearlyLedger'
 import {
   getPropertyByAddress,
-  getImpactEventsForProperty,
-  getEventsByZip,
+  getMeetingGroupsForProperty,
+  getMeetingGroupsByZip,
 } from '@/lib/data'
 import {
   calculateCivicIQ,
 } from '@/lib/utils'
 import { mockProperty } from '@/lib/mock-data'
-import { ImpactEvent, CadProperty } from '@/lib/types'
+import { MeetingGroup, CadProperty } from '@/lib/types'
 
 export default async function DashboardPage({
   searchParams,
@@ -21,7 +21,7 @@ export default async function DashboardPage({
   const { address, exact } = await searchParams
   
   let property: CadProperty | null = null
-  let events: ImpactEvent[] = []
+  let meetingGroups: MeetingGroup[] = []
   let isZipFallback = false
   let displayZip = ''
 
@@ -31,20 +31,17 @@ export default async function DashboardPage({
     
     if (property) {
       console.log(`[Dashboard] Property found: ${property.id}`)
-      events = await getImpactEventsForProperty(property)
+      meetingGroups = await getMeetingGroupsForProperty(property)
     } else {
       console.log(`[Dashboard] Property not found, attempting ZIP fallback...`)
-      // Try to extract zip (more robust regex)
       const zipMatch = address.match(/(\d{5})(-\d{4})?$/) || address.match(/\b\d{5}\b/)
       if (zipMatch) {
         displayZip = zipMatch[1] || zipMatch[0]
-        console.log(`[Dashboard] ZIP extracted: ${displayZip}`)
-        const result = await getEventsByZip(displayZip)
-        events = result.events
+        const result = await getMeetingGroupsByZip(displayZip)
+        meetingGroups = result.meetings
         
-        if (events.length > 0) {
+        if (meetingGroups.length > 0) {
           isZipFallback = true
-          // Create a dummy property for regional calculation
           property = {
             ...mockProperty,
             id: `regional-${displayZip}`,
@@ -55,8 +52,6 @@ export default async function DashboardPage({
             assessed_value: 450000,
             school_district_code: 'Local ISD'
           }
-        } else {
-          console.log(`[Dashboard] No events found for ZIP ${displayZip}`)
         }
       }
     }
@@ -64,21 +59,23 @@ export default async function DashboardPage({
   
   // Final fallback to mock if absolutely nothing found
   const activeProperty = property || mockProperty
-  if (events.length === 0 && !isZipFallback) {
-    events = await getImpactEventsForProperty(activeProperty)
+  if (meetingGroups.length === 0 && !isZipFallback) {
+    meetingGroups = await getMeetingGroupsForProperty(activeProperty)
   }
   
-  const civicIQ = calculateCivicIQ(activeProperty, events)
+  // Flatten events for CivicIQ calculation
+  const allEvents = meetingGroups.flatMap(m => m.events)
+  const civicIQ = calculateCivicIQ(activeProperty, allEvents)
 
-  // Group events by year
-  const groupedEvents = events.reduce((acc, event) => {
-    const year = new Date(event.meeting_date).getFullYear()
+  // Group meetings by year
+  const yearlyMeetings = meetingGroups.reduce((acc, meeting) => {
+    const year = new Date(meeting.meeting_date).getFullYear()
     if (!acc[year]) acc[year] = []
-    acc[year].push(event)
+    acc[year].push(meeting)
     return acc
-  }, {} as Record<number, ImpactEvent[]>)
+  }, {} as Record<number, MeetingGroup[]>)
 
-  const sortedYears = Object.keys(groupedEvents)
+  const sortedYears = Object.keys(yearlyMeetings)
     .map(Number)
     .sort((a, b) => b - a)
 
@@ -159,7 +156,7 @@ export default async function DashboardPage({
                   <p className="text-sm text-zinc-500 mt-1">
                     {isZipFallback 
                       ? `General legislative actions affecting the ${displayZip} area.`
-                      : `Direct legislative impacts on your property value and costs.`}
+                      : `Grouped meeting summaries with specific legislative impacts.`}
                   </p>
                 </div>
               </div>
@@ -175,7 +172,7 @@ export default async function DashboardPage({
                   <YearlyLedger
                     key={year}
                     year={year}
-                    events={groupedEvents[year]}
+                    meetings={yearlyMeetings[year]}
                     property={activeProperty}
                     defaultOpen={year >= currentYear}
                   />
@@ -183,7 +180,7 @@ export default async function DashboardPage({
               </div>
 
               {/* empty state placeholder */}
-              {events.length === 0 && (
+              {allEvents.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-3xl border border-dashed border-zinc-200">
                   <span className="text-4xl mb-4 text-zinc-300">🏛️</span>
                   <p className="font-bold text-zinc-900">No matching events found</p>

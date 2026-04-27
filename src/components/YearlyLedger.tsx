@@ -1,22 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import type { ImpactEvent, CadProperty } from '@/lib/types'
-import ImpactCard from './ImpactCard'
+import type { MeetingGroup, CadProperty } from '@/lib/types'
+import MeetingCard from './MeetingCard'
 import { calculatePersonalImpact } from '@/lib/utils'
 
 interface YearlyLedgerProps {
   year: number
-  events: ImpactEvent[]
+  meetings: MeetingGroup[]
   property: CadProperty
   defaultOpen?: boolean
 }
 
-export default function YearlyLedger({ year, events, property, defaultOpen = false }: YearlyLedgerProps) {
+export default function YearlyLedger({ year, meetings, property, defaultOpen = false }: YearlyLedgerProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
-  const totalImpact = events.reduce((sum, e) => sum + calculatePersonalImpact(property, e), 0)
-  const matchCount = events.filter(e => e.important).length
+  // Calculate yearly total from all meetings
+  const totalImpact = meetings.reduce((sum, meeting) => {
+    return sum + meeting.events.reduce((mSum, event) => mSum + calculatePersonalImpact(property, event), 0)
+  }, 0)
+
+  const matchCount = meetings.reduce((sum, meeting) => {
+    return sum + meeting.events.filter(e => e.important).length
+  }, 0)
   
   const isFuture = year >= new Date().getFullYear()
 
@@ -42,7 +48,7 @@ export default function YearlyLedger({ year, events, property, defaultOpen = fal
               {isFuture ? 'Proposed & Pending Actions' : `Historical Annual Impact`}
             </h3>
             <div className="mt-1 flex items-center gap-3">
-              <span className="text-xs text-zinc-500">{events.length} events</span>
+              <span className="text-xs text-zinc-500">{meetings.length} meetings</span>
               <span className="h-1 w-1 rounded-full bg-zinc-300" />
               <span className="text-xs font-medium text-blue-600">{matchCount} direct matches</span>
             </div>
@@ -68,15 +74,18 @@ export default function YearlyLedger({ year, events, property, defaultOpen = fal
         </div>
       </button>
 
-      {/* Events List */}
+      {/* Meetings List */}
       {isOpen && (
         <div className="bg-zinc-50/50 p-4">
           <div className="space-y-4">
-            {events.map(event => (
-              <ImpactCard
-                key={event.id}
-                event={event}
-                dollarImpact={calculatePersonalImpact(property, event)}
+            {meetings.map((meeting, idx) => (
+              <MeetingCard
+                key={`${meeting.meeting_date}-${meeting.meeting_type}-${idx}`}
+                meetingDate={meeting.meeting_date}
+                meetingType={meeting.meeting_type}
+                aiSummary={meeting.ai_summary || ''}
+                events={meeting.events}
+                property={property}
               />
             ))}
           </div>

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { CadProperty, ImpactEvent } from '@/lib/types'
+import { CadProperty, ImpactEvent, MeetingGroup } from '@/lib/types'
 
 export async function getPropertyByAddress(address: string, exact = false): Promise<CadProperty | null> {
   const supabase = await createClient()
@@ -28,6 +28,59 @@ export async function getPropertyByAddress(address: string, exact = false): Prom
     .single()
       
   return fuzzyData as CadProperty | null
+}
+
+export async function getMeetingGroupsForProperty(property: CadProperty): Promise<MeetingGroup[]> {
+  const events = await getEventsByCriteria(property.county, property.city, property.school_district_code)
+  return groupEventsToMeetings(events, property.county)
+}
+
+export async function getMeetingGroupsByZip(zip: string): Promise<{ meetings: MeetingGroup[], county: string }> {
+  const { events, county } = await getEventsByZip(zip)
+  const meetings = await groupEventsToMeetings(events, county)
+  return { meetings, county }
+}
+
+async function groupEventsToMeetings(events: ImpactEvent[], county: string): Promise<MeetingGroup[]> {
+  if (events.length === 0) return []
+
+  const supabase = await createClient()
+
+  // 1. Group events by meeting key
+  const groups: Record<string, MeetingGroup> = {}
+  events.forEach(event => {
+    const key = `${event.meeting_date}|${event.meeting_type}`
+    if (!groups[key]) {
+      groups[key] = {
+        meeting_date: event.meeting_date,
+        meeting_type: event.meeting_type,
+        events: []
+      }
+    }
+    groups[key].events.push(event)
+  })
+
+  // 2. Fetch summaries for these meetings
+  const meetingKeys = Object.keys(groups)
+  const { data: summaries } = await supabase
+    .from('meeting_summaries')
+    .select('meeting_date, meeting_type, ai_summary')
+    .eq('county', county)
+    .in('meeting_date', meetingKeys.map(k => k.split('|')[0]))
+
+  if (summaries) {
+    summaries.forEach(s => {
+      const key = `${s.meeting_date}|${s.meeting_type}`
+      if (groups[key]) {
+        groups[key].ai_summary = s.ai_summary
+      }
+    })
+  }
+
+  // 3. Return sorted meetings
+  return Object.values(groups).sort((a, b) => 
+    new Date(b.meeting_date).getTime() - new Date(a.meeting_date).getTime()
+  )
 }
 
 export async function getImpactEventsForProperty(property: CadProperty): Promise<ImpactEvent[]> {
