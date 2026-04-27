@@ -127,9 +127,10 @@ export async function getEventsByZip(zip: string): Promise<{ events: ImpactEvent
 async function getEventsByCriteria(county: string, city?: string, schoolDistrict?: string): Promise<ImpactEvent[]> {
   const supabase = await createClient()
   
+  // Select only the columns the UI needs — raw_llm_response is large JSONB and unused here
   const { data, error } = await supabase
     .from('impact_events')
-    .select('*')
+    .select('id, county, source, meeting_date, meeting_type, title, summary, impact_type, rate_change_pct, avg_dollar_impact, source_pdf_url, confidence')
     .eq('county', county)
     .neq('impact_type', 'other')
     .order('meeting_date', { ascending: false })

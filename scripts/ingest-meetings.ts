@@ -110,7 +110,11 @@ function normalize(raw: GeminiMeetingRecord) {
     impact_type:      raw.impact_type ?? 'other',
     rate_change_pct:  rateDelta,
     avg_dollar_impact: raw.avg_dollar_impact_estimate || null,
-    source_pdf_url:   raw.source_pdf_url || null,
+    // Construct Legistar URL from host + agenda_item_id if Gemini didn't populate a direct PDF URL
+    source_pdf_url:   raw.source_pdf_url ||
+      (host && agendaItemId
+        ? `https://${host}.legistar.com/LegislationDetail.aspx?ID=${agendaItemId}`
+        : null),
     source_pdf_page:  raw.source_pdf_page ?? 1,
     confidence:       raw.confidence ?? 'low',
     civic_iq_delta:   raw.civic_iq_delta ?? 1,
@@ -174,7 +178,7 @@ async function main() {
 
   const meetingsDir = dirArg
     ? path.resolve(dirArg)
-    : path.join(__dirname, '..', 'data', 'meetings')
+    : path.join(__dirname, '..', 'CCAD Data', 'data', 'meetings')
 
   if (!fs.existsSync(meetingsDir)) {
     console.error(`❌ Meetings dir not found: ${meetingsDir}`)
