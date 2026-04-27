@@ -10,7 +10,6 @@ export default function AddressSearch({ large = false }: { large?: boolean }) {
   const [focused, setFocused] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchSuggestions = useCallback(async (input: string) => {
@@ -18,8 +17,11 @@ export default function AddressSearch({ large = false }: { large?: boolean }) {
       setSuggestions([])
       return
     }
-
-    // Prefix match (e.g. "123 M%") uses the B-tree index on address.
+    // createClient() is called lazily here — only runs in the browser.
+    // Calling it at component level causes a prerender crash because
+    // NEXT_PUBLIC_SUPABASE_URL is undefined during Next.js static generation.
+    const supabase = createClient()
+    // Prefix match uses the B-tree index on address.
     // Leading-wildcard ilike ("%input%") forces a full sequential scan on 385K rows.
     const { data, error } = await supabase
       .from('properties')
@@ -30,7 +32,7 @@ export default function AddressSearch({ large = false }: { large?: boolean }) {
     if (!error && data) {
       setSuggestions(data.map(d => d.address))
     }
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
