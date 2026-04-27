@@ -30,10 +30,16 @@ const SYSTEM_PROMPT = `You are a civic intelligence analyst for Wayntage, a plat
 
 Write a 2-3 sentence plain-English narrative of a city council meeting FOR A HOMEOWNER. Your target reader owns a home in this city and wants to know: does this affect my wallet or neighborhood?
 
-RULES:
+TENSE RULES — this is critical:
+- If the meeting already happened (PAST), use past tense: "The council approved...", "Voters passed...", "The city held rates flat..."
+- If the meeting is upcoming (FUTURE), use future tense: "The council will consider...", "Voters will decide..."
+- The user prompt will tell you explicitly: "This meeting HAS OCCURRED" or "This meeting is UPCOMING"
+- Never use future tense for a meeting that already happened — it confuses homeowners
+
+CONTENT RULES:
 - If there are tax rate numbers (e.g. 0.4274 per $100), calculate the annual dollar impact for a $400,000 home and state it. Example: "The city held the property tax rate at 0.4274 per $100 — about $1,710/year on a $400K home."
 - If a tax rate is proposed but unchanged, say so: "Council held rates flat — no change to your tax bill."
-- If there's a bond, state the dollar amount and what it funds. Example: "Voters will decide on a $47M bond for road repairs."
+- If there's a bond, state the dollar amount and what it funds. Example: "Voters approved a $47M bond for road repairs."
 - For zoning changes, describe location and what's proposed in plain English.
 - For budget approvals, state the total and the main spending category.
 - Lead with the most financially significant item.
@@ -65,7 +71,13 @@ async function generateSummary(
     return line
   }).join('\n')
 
+  const isPast = new Date(meeting.meeting_date) < new Date()
+  const tenseNote = isPast
+    ? `This meeting HAS OCCURRED (${meeting.meeting_date} is in the past). Use past tense throughout.`
+    : `This meeting is UPCOMING (${meeting.meeting_date} is in the future). Use future tense.`
+
   const userPrompt = `Meeting: ${meeting.meeting_type} — ${meeting.meeting_date} (${meeting.county} County)
+${tenseNote}
 
 Agenda Items:
 ${itemsText}
@@ -94,12 +106,28 @@ Write a 2-3 sentence homeowner-friendly summary:`
   }
 }
 
+// Future-tense phrases that are wrong for a meeting that already happened
+const FUTURE_TENSE_PATTERNS = [
+  'will hold', 'will vote', 'will consider', 'will approve', 'will discuss',
+  'will review', 'will hear', 'will decide', 'is scheduled', 'are scheduled',
+  'should attend', 'residents interested', 'might impact',
+]
+
+function hasFutureTenseError(summary: string, meeting_date: string): boolean {
+  const isPast = new Date(meeting_date) < new Date()
+  if (!isPast) return false
+  const lower = summary.toLowerCase()
+  return FUTURE_TENSE_PATTERNS.some(p => lower.includes(p))
+}
+
 async function main() {
   const args = process.argv.slice(2)
   const forceRegenerate = args.includes('--regen-weak')
+  const regenTense = args.includes('--regen-tense')
 
   console.log('🏛️  Generating Meeting Summaries with Claude...')
   if (forceRegenerate) console.log('   Mode: re-generating weak summaries\n')
+  if (regenTense) console.log('   Mode: re-generating future-tense summaries for past meetings\n')
 
   // Fetch events WITH rate data so Claude can do the dollar math
   const { data: events, error } = await supabase
@@ -139,12 +167,18 @@ async function main() {
       .single()
 
     if (existing) {
-      // Skip unless it's a weak summary and we're in regen mode
-      if (!forceRegenerate || !isWeakSummary(existing.ai_summary)) {
+      const isTenseError = regenTense && hasFutureTenseError(existing.ai_summary, meeting_date)
+      const isWeak = forceRegenerate && isWeakSummary(existing.ai_summary)
+
+      if (!isWeak && !isTenseError) {
         skipped++
         continue
       }
-      console.log(`[REGEN] ${meeting_date} ${meeting_type} (${county}) — weak summary detected`)
+      if (isTenseError) {
+        console.log(`[TENSE] ${meeting_date} ${meeting_type} (${county}) — future tense in past meeting`)
+      } else {
+        console.log(`[REGEN] ${meeting_date} ${meeting_type} (${county}) — weak summary detected`)
+      }
       regenerated++
     } else {
       console.log(`[${generated + regenerated + 1}/${total}] ${meeting_date} ${meeting_type} (${county})`)
@@ -186,8 +220,8 @@ async function main() {
   }
 
   console.log(`\n🎉 Done. ${generated} generated, ${regenerated} re-generated, ${skipped} skipped.`)
-  if (!forceRegenerate) {
-    console.log(`   Tip: run with --regen-weak to re-generate the "I don't have enough detail" summaries.`)
+  if (!forceRegenerate && !regenTense) {
+    console.log(`   Tip: run with --regen-weak to fix thin summaries, --regen-tense to fix future-tense summaries on past meetings.`)
   }
 }
 
