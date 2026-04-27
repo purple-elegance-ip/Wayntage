@@ -74,15 +74,26 @@ function normalizeRecord(raw: Record<string, unknown>, county: string) {
   }
 }
 
-async function ingestCounty(county: string) {
-  const filePath = path.join(DATA_DIR, county, '2025.json')
+async function ingestCounty(county: string, yearArg: number | null) {
+  const yearsToTry = yearArg ? [yearArg] : [2025, 2026]
+  let filePath = ''
+  let year = 2025
 
-  if (!fs.existsSync(filePath)) {
-    console.log(`⚠️  No data file for ${county} at ${filePath} — skipping`)
+  for (const y of yearsToTry) {
+    const p = path.join(DATA_DIR, county, `${y}.json`)
+    if (fs.existsSync(p)) {
+      filePath = p
+      year = y
+      break
+    }
+  }
+
+  if (!filePath) {
+    console.log(`⚠️  No data file for ${county} in ${DATA_DIR}/${county} (tried ${yearsToTry.join(', ')}) — skipping`)
     return
   }
 
-  console.log(`\n📂 Loading ${county} data...`)
+  console.log(`\n📂 Loading ${county} ${year} data from ${filePath}...`)
   const raw: Record<string, unknown>[] = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
 
   // Filter residential only
@@ -119,6 +130,10 @@ async function main() {
   const all = args.includes('--all')
   const countyArg = args.find(a => a.startsWith('--county='))?.split('=')[1]
     ?? (args.indexOf('--county') !== -1 ? args[args.indexOf('--county') + 1] : null)
+  
+  const yearArgStr = args.find(a => a.startsWith('--year='))?.split('=')[1]
+    ?? (args.indexOf('--year') !== -1 ? args[args.indexOf('--year') + 1] : null)
+  const yearArg = yearArgStr ? Number(yearArgStr) : null
 
   const counties = all
     ? Object.keys(COUNTY_MAP)
@@ -128,10 +143,11 @@ async function main() {
 
   console.log(`🏠 Wayntage CAD Ingestion`)
   console.log(`   Counties: ${counties.join(', ')}`)
+  console.log(`   Year: ${yearArg ?? 'auto'}`)
   console.log(`   Data dir: ${DATA_DIR}\n`)
 
   for (const county of counties) {
-    await ingestCounty(county)
+    await ingestCounty(county, yearArg)
   }
 
   console.log('\n🎉 Done.')

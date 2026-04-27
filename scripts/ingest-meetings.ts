@@ -13,11 +13,27 @@
 import { createClient } from '@supabase/supabase-js'
 import * as fs from 'fs'
 import * as path from 'path'
+import * as crypto from 'crypto'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+function generateStableId(county: string, agendaItemId: string): string {
+  const hash = crypto.createHash('sha256')
+    .update(`${county}-${agendaItemId}`)
+    .digest('hex')
+  
+  // Format as UUID: 8-4-4-4-12
+  return [
+    hash.slice(0, 8),
+    hash.slice(8, 12),
+    hash.slice(12, 16),
+    hash.slice(16, 20),
+    hash.slice(20, 32)
+  ].join('-')
+}
 
 // Host → county mapping (expand as more cities are added)
 const HOST_COUNTY: Record<string, string> = {
@@ -29,11 +45,15 @@ const HOST_COUNTY: Record<string, string> = {
   prosper:          'collin',
   cityoflewisville: 'denton',
   denton:           'denton',
+  aubrey:           'denton',
+  carrolltontx:     'denton',
+  cityofdallas:     'dallas',
   grandprairie:     'dallas',
   mesquite:         'dallas',
   garland:          'dallas',
   arlington:        'tarrant',
   fortworth:        'tarrant',
+  fortworthgov:     'tarrant',
 }
 
 const BATCH_SIZE = 100
@@ -63,6 +83,7 @@ interface GeminiMeetingRecord {
 function normalize(raw: GeminiMeetingRecord) {
   const host = raw.source_host?.toLowerCase() ?? ''
   const county = HOST_COUNTY[host] ?? raw.source_county?.toLowerCase() ?? 'unknown'
+  const agendaItemId = String(raw.agenda_item_id)
 
   const rateDelta = raw.rate_current && raw.rate_proposed
     ? (raw.rate_proposed - raw.rate_current) / 100
@@ -78,11 +99,12 @@ function normalize(raw: GeminiMeetingRecord) {
     : summaryBullets.join(' • ')
 
   return {
+    id:               generateStableId(county, agendaItemId),
     county,
     source:           'legistar' as const,
     meeting_date:     raw.meeting_date,
     meeting_type:     raw.meeting_type,
-    agenda_item_id:   String(raw.agenda_item_id),
+    agenda_item_id:   agendaItemId,
     title:            raw.title?.slice(0, 200) ?? 'Untitled',
     summary,
     impact_type:      raw.impact_type ?? 'other',
@@ -125,7 +147,7 @@ async function ingestCity(cityDir: string, cityName: string) {
       const batch = records.slice(i, i + BATCH_SIZE)
       const { error } = await supabase
         .from('impact_events')
-        .upsert(batch, { onConflict: 'agenda_item_id' })
+        .upsert(batch, { onConflict: 'id' })
 
       if (error) {
         console.error(`    ❌ ${year} batch ${i}: ${error.message}`)

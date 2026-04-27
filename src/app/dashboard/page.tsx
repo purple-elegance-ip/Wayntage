@@ -3,31 +3,36 @@ import CivicIQGauge from '@/components/CivicIQGauge'
 import ImpactCard from '@/components/ImpactCard'
 import AddressSearch from '@/components/AddressSearch'
 import {
-  mockImpactEvents,
-  mockCivicIQ,
-  mockProperty,
-  mockDollarImpacts,
-} from '@/lib/mock-data'
+  getPropertyByAddress,
+  getImpactEventsForProperty,
+  calculateCivicIQ,
+  calculatePersonalImpact
+} from '@/lib/data'
+import { mockProperty } from '@/lib/mock-data'
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ address?: string }>
+  searchParams: Promise<{ address?: string; exact?: string }>
 }) {
-  const { address } = await searchParams
-  const displayAddress = address ?? mockProperty.address
-
-  // TODO: replace with real Supabase queries once DB is live
-  // const property = await getPropertyByAddress(displayAddress)
-  // const events   = await getImpactEventsForProperty(property)
-  // const civicIQ  = await getCivicIQ(property.id)
-  const events  = mockImpactEvents
-  const civicIQ = mockCivicIQ
+  const { address, exact } = await searchParams
+  
+  let property = null
+  if (address) {
+    property = await getPropertyByAddress(address, exact === 'true')
+  }
+  
+  // Fallback to mock if nothing found, for demo purposes
+  const activeProperty = property || mockProperty
+  const events = await getImpactEventsForProperty(activeProperty)
+  const civicIQ = calculateCivicIQ(activeProperty, events)
 
   const pending = events.filter(e =>
     ['tax_rate_change', 'bond_election', 'special_assessment'].includes(e.impact_type) &&
-    new Date(e.meeting_date) > new Date('2026-01-01')
+    new Date(e.meeting_date) > new Date()
   )
+
+  const displayAddress = activeProperty.address
 
   return (
     <>
@@ -38,7 +43,9 @@ export default async function DashboardPage({
         <div className="border-b border-zinc-100 bg-white px-4 py-3">
           <div className="mx-auto max-w-6xl flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-xs text-zinc-400">Showing impact for</p>
+              <p className="text-xs text-zinc-400">
+                {property ? 'Showing impact for' : 'Address not found — showing demo data for'}
+              </p>
               <p className="truncate text-sm font-medium text-zinc-900">{displayAddress}</p>
             </div>
             <div className="hidden sm:block">
@@ -82,11 +89,11 @@ export default async function DashboardPage({
                   Property
                 </p>
                 <dl className="space-y-2">
-                  <Row label="Assessed value" value={`$${mockProperty.assessed_value.toLocaleString()}`} />
-                  <Row label="School district" value={mockProperty.school_district_code} />
-                  <Row label="City" value={mockProperty.city} />
-                  <Row label="Homestead exempt" value={mockProperty.homestead_exempt ? 'Yes' : 'No'} />
-                  <Row label="Year built" value={String(mockProperty.year_built ?? '—')} />
+                  <Row label="Assessed value" value={`$${activeProperty.assessed_value.toLocaleString()}`} />
+                  <Row label="School district" value={activeProperty.school_district_code} />
+                  <Row label="City" value={activeProperty.city} />
+                  <Row label="Homestead exempt" value={activeProperty.homestead_exempt ? 'Yes' : 'No'} />
+                  <Row label="Year built" value={String(activeProperty.year_built ?? '—')} />
                 </dl>
               </div>
             </aside>
@@ -110,7 +117,7 @@ export default async function DashboardPage({
                   <ImpactCard
                     key={event.id}
                     event={event}
-                    dollarImpact={mockDollarImpacts[event.id]}
+                    dollarImpact={calculatePersonalImpact(activeProperty, event)}
                   />
                 ))}
               </div>
