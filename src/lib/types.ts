@@ -67,6 +67,7 @@ export interface ImpactEvent {
   confidence: 'high' | 'estimated' | 'low'
   // Civic-IQ contribution
   civic_iq_delta: number        // how much this moves the Civic-IQ score
+  important?: boolean           // whether to highlight this event
   created_at: string
 }
 

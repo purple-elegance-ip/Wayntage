@@ -41,9 +41,16 @@ export default function ImpactCard({
             {type.icon}
           </span>
           <div>
-            <span className={`text-[11px] font-semibold uppercase tracking-wider ${type.text}`}>
-              {type.label}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`text-[11px] font-semibold uppercase tracking-wider ${type.text}`}>
+                {type.label}
+              </span>
+              {event.important && (
+                <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 uppercase tracking-tight">
+                  Match
+                </span>
+              )}
+            </div>
             <h3 className="text-sm font-semibold text-zinc-900 leading-snug">
               {event.title}
             </h3>
