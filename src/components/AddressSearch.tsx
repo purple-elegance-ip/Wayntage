@@ -9,7 +9,6 @@ export default function AddressSearch({ large = false }: { large?: boolean }) {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [focused, setFocused] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [searching, setSearching] = useState(false)
   const router = useRouter()
   const supabase = createClient()
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -20,17 +19,17 @@ export default function AddressSearch({ large = false }: { large?: boolean }) {
       return
     }
 
-    setSearching(true)
+    // Prefix match (e.g. "123 M%") uses the B-tree index on address.
+    // Leading-wildcard ilike ("%input%") forces a full sequential scan on 385K rows.
     const { data, error } = await supabase
       .from('properties')
       .select('address')
-      .ilike('address', `%${input}%`)
+      .ilike('address', `${input.toUpperCase()}%`)
       .limit(5)
 
     if (!error && data) {
       setSuggestions(data.map(d => d.address))
     }
-    setSearching(false)
   }, [supabase])
 
   useEffect(() => {
@@ -89,7 +88,7 @@ export default function AddressSearch({ large = false }: { large?: boolean }) {
           className="shrink-0 rounded-xl bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white
             hover:bg-zinc-700 disabled:opacity-40 transition-colors flex items-center gap-2"
         >
-          {loading ? '…' : (searching ? <span className="animate-spin text-xs">◌</span> : 'Check')}
+          {loading ? '…' : 'Check'}
         </button>
       </div>
 

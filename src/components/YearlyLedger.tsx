@@ -58,7 +58,7 @@ export default function YearlyLedger({ year, meetings, property, defaultOpen = f
         <div className="flex items-center gap-6">
           <div className="text-right">
             <p className={`text-xl font-black ${totalImpact === 0 ? 'text-zinc-300' : totalImpact > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {totalImpact === 0 ? '$0' : `${totalImpact > 0 ? '+' : '-'}$${Math.abs(totalImpact).toLocaleString()}`}
+              {totalImpact === 0 ? '$0' : `${totalImpact > 0 ? '+' : '−'}$${Math.round(Math.abs(totalImpact)).toLocaleString('en-US')}`}
             </p>
             <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Total Est. Impact</p>
           </div>
