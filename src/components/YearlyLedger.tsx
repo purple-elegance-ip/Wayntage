@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { ImpactEvent, CadProperty } from '@/lib/types'
 import ImpactCard from './ImpactCard'
-import { calculatePersonalImpact } from '@/lib/data'
+import { calculatePersonalImpact } from '@/lib/utils'
 
 interface YearlyLedgerProps {
   year: number

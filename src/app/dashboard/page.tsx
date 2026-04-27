@@ -5,8 +5,10 @@ import YearlyLedger from '@/components/YearlyLedger'
 import {
   getPropertyByAddress,
   getImpactEventsForProperty,
-  calculateCivicIQ,
 } from '@/lib/data'
+import {
+  calculateCivicIQ,
+} from '@/lib/utils'
 import { mockProperty } from '@/lib/mock-data'
 import { ImpactEvent } from '@/lib/types'
 
